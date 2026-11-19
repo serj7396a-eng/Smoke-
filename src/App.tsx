@@ -12,9 +12,10 @@ import { BiochemistryTabSection } from './components/BiochemistryTabSection';
 import { VoicesDeckTabSection } from './components/VoicesDeckTabSection';
 import { BottomNavDock } from './components/BottomNavDock';
 import { QuitTimeSheet } from './components/QuitTimeSheet';
-
-// Strictly preserve existing localStorage quit-timestamp key so active user timers are never reset
-const STORAGE_QUIT_TS_KEY = 'neuroshtil_quit_timestamp_v1';
+import {
+  loadInitialQuitTimestamp,
+  saveQuitTimestamp
+} from './utils/safeStorage';
 
 const TAB_ORDER: Record<AppTabId, number> = {
   core: 0,
@@ -22,25 +23,10 @@ const TAB_ORDER: Record<AppTabId, number> = {
   voices: 2
 };
 
-function loadInitialQuitTimestamp(): number {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_QUIT_TS_KEY);
-    if (raw) {
-      const parsed = Number(raw);
-      if (Number.isFinite(parsed) && parsed > 0 && parsed <= Date.now() + 60_000) {
-        return parsed;
-      }
-    }
-    const defaultTs = Date.now() - (16 * 3600 + 24 * 60 + 15) * 1000;
-    window.localStorage.setItem(STORAGE_QUIT_TS_KEY, String(defaultTs));
-    return defaultTs;
-  } catch {
-    return Date.now() - 16 * 3600 * 1000;
-  }
-}
-
 export default function App() {
-  const [quitTimestampMs, setQuitTimestampMs] = useState<number>(loadInitialQuitTimestamp);
+  const [quitTimestampMs, setQuitTimestampMs] = useState<number>(() =>
+    loadInitialQuitTimestamp()
+  );
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [isQuitSheetOpen, setIsQuitSheetOpen] = useState<boolean>(false);
 
@@ -90,11 +76,7 @@ export default function App() {
     setQuitTimestampMs(newTs);
     setNowMs(Date.now());
     setPreviewStageIndex(null);
-    try {
-      window.localStorage.setItem(STORAGE_QUIT_TS_KEY, String(newTs));
-    } catch {
-      // Ignore storage quota errors in restricted frames
-    }
+    saveQuitTimestamp(newTs);
   };
 
   return (
